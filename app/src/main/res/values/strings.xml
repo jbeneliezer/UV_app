@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">UV</string>
+    <string name="currentUV" />
+</resources>
