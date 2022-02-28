@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,19 +37,25 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         lineChart = findViewById(R.id.activity_main_linechart);
         configureLineChart();
+        exposureLimit = 10000;
 
         handler = new Handler();
         delay = 1000;
+        timezone = 5;
 
         handler.postDelayed( runnable = new Runnable() {
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void run() {
                 getUVData();
+                processUVData();
                 setLineChartData();
+                setCurrentUV();
+                setTimeLeft();
                 handler.postDelayed(runnable, delay);
             }
         }, delay);
+
     }
 
     @Override
@@ -71,14 +78,15 @@ public class MainActivity extends AppCompatActivity {
         uvIndex = (float) Math.random() * 10;
         Entry e = new Entry(x, uvIndex);
         valueSet.addEntry(e);
-
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void processUVData() {
-        irradiance += uvIndex/40;
-        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(timezone)));
         int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
+        exposure += uvIndex;
+        float meanUV = exposure/timeDiff;
+        timeLeft = LocalTime.ofSecondOfDay((long) ((exposureLimit - exposure) / meanUV));
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -126,13 +134,21 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("DefaultLocale")
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void setLineChartData() {
-        TextView tv = findViewById(R.id.currentUV);
-        tv.setText(String.format("%.02f", uvIndex));
-        Log.e("values", (String.join(",", valueSet.toString())));
 
         LineData lineData = new LineData(valueSet);
         lineChart.setData(lineData);
         lineChart.invalidate();
+    }
+
+    @SuppressLint("DefaultLocale")
+    private void setCurrentUV() {
+        TextView tv = findViewById(R.id.currentUV);
+        tv.setText(String.format("Current Index: %.02f", uvIndex));
+    }
+
+    private void setTimeLeft() {
+        TextView tv = findViewById(R.id.timeLeft);
+        tv.setText(String.format("Time Left: %s", timeLeft.toString()));
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -140,15 +156,17 @@ public class MainActivity extends AppCompatActivity {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
 
-    XAxis xAxis;
+    private XAxis xAxis;
     private LineChart lineChart;
     private LineDataSet valueSet;
     private Handler handler;
     private Runnable runnable;
     private LocalTime startTime;
     private LocalTime localTime;
+    int timezone;
     private int delay;
     private float uvIndex;
-    private float irradiance;
-    private float irradianceLimit;
+    private float exposure;
+    private float exposureLimit;
+    private LocalTime timeLeft;
 }
