@@ -4,13 +4,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanFilter;
@@ -22,6 +27,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -188,14 +194,26 @@ public class MainActivity extends AppCompatActivity {
 
         handler = new Handler();
 
+        // Lookup the swipe container view
+        swipeContainer = (SwipeRefreshLayout) findViewById(R.id.swipeContainer);
+        // Setup refresh listener which triggers new data loading
+        swipeContainer.setOnRefreshListener(leRefreshListener);
+
+        swipeContainer.setColorSchemeResources(R.color.pink,
+                R.color.purple,
+                R.color.blue);
+
         RecyclerView rvDevices = (RecyclerView) findViewById(R.id.recycler_view);
 
         // Create adapter passing in the sample user data
-        rvAdapter = new DevicesAdapter(leDevicesFound);
+        rvAdapter = new DevicesAdapter(leDevicesFound, lePairListener);
         // Attach the adapter to the recyclerview to populate items
         rvDevices.setAdapter(rvAdapter);
         // Set layout manager to position the items
         rvDevices.setLayoutManager(new LinearLayoutManager(this));
+        RecyclerView.ItemDecoration itemDecoration = new
+                DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+        rvDevices.addItemDecoration(itemDecoration);
 
         //start scanning
         scanLeDevice();
@@ -216,10 +234,12 @@ public class MainActivity extends AppCompatActivity {
             //start scanning if the device is not scanning
             scanning = true;
             bluetoothLeScanner.startScan(leScanFilter, leScanSetting, leScanCallback);
+            //bluetoothLeScanner.startScan(leScanCallback);
         } else {
-            //stop scanning if the device is scanning
+            //if the device is scanning, stop and restart scanning
             scanning = false;
             bluetoothLeScanner.stopScan(leScanCallback);
+            scanLeDevice();
         }
     }
 
@@ -244,6 +264,42 @@ public class MainActivity extends AppCompatActivity {
                 }
             };
 
+    private SwipeRefreshLayout.OnRefreshListener leRefreshListener =
+        new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                leDevicesFound.clear();
+                swipeContainer.setRefreshing(false);
+                rvAdapter.notifyDataSetChanged();
+            }
+        };
+
+    private DevicesAdapter.AdapterListener lePairListener =
+            new DevicesAdapter.AdapterListener() {
+                @SuppressLint("MissingPermission")
+                @Override
+                public void buttonClick(View view, int position) {
+                    leDevicesFound.get(position).connectGatt(MainActivity.this, false, leGattCallback);
+                    leDevicesFound.clear();
+                    rvAdapter.notifyDataSetChanged();
+                }
+            };
+
+    private BluetoothGattCallback leGattCallback = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                //successfully connected to the GATT Server
+                leDeviceConnected = gatt;
+                connected = true;
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                //disconnected from the GATT Server
+                leDeviceConnected = null;
+                connected = false;
+            }
+        }
+    };
+
     //length of time to keep scanning: 30 seconds
     private static final long SCAN_TIME = 60000;
 
@@ -264,6 +320,8 @@ public class MainActivity extends AppCompatActivity {
             .build();
 
     private List<BluetoothDevice> leDevicesFound = new ArrayList<BluetoothDevice>();
-    private BluetoothDevice leDeviceConnected;
-    DevicesAdapter rvAdapter;
+    private BluetoothGatt leDeviceConnected = null;
+    private boolean connected = false;
+    private SwipeRefreshLayout swipeContainer;
+    private DevicesAdapter rvAdapter;
 }

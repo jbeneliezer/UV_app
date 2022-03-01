@@ -18,6 +18,7 @@ import java.util.List;
 public class DevicesAdapter extends RecyclerView.Adapter<DevicesAdapter.ViewHolder> {
     // Store a member variable for the found devices
     private List<BluetoothDevice> mDevices;
+    private AdapterListener onClickListener;
 
     // Provide a direct reference to each of the views within a data item
     // Used to cache the views within the item layout for fast access
@@ -36,12 +37,27 @@ public class DevicesAdapter extends RecyclerView.Adapter<DevicesAdapter.ViewHold
 
             nameDevice = (TextView) itemView.findViewById(R.id.name_device);
             buttonConnect = (Button) itemView.findViewById(R.id.button_connect);
+            buttonConnect.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    onClickListener.buttonClick(v, getAdapterPosition());
+                }
+            });
         }
     }
 
     // Pass in the contact array into the constructor
-    public DevicesAdapter(List<BluetoothDevice> devices) {
+    public DevicesAdapter(List<BluetoothDevice> devices, AdapterListener listener) {
         mDevices = devices;
+        onClickListener = listener;
+    }
+
+    public BluetoothDevice getDevice(int id) {
+        return mDevices.get(id);
+    }
+
+    public interface AdapterListener {
+        void buttonClick(View view, int position);
     }
 
     @Override
@@ -66,7 +82,7 @@ public class DevicesAdapter extends RecyclerView.Adapter<DevicesAdapter.ViewHold
 
         // Set item views based on your views and data model
         TextView textView = holder.nameDevice;
-        textView.setText(device.getName());
+        textView.setText(device.getName() + "\n" + device.getAddress());
         Button button = holder.buttonConnect;
         button.setText("Pair");
     }
