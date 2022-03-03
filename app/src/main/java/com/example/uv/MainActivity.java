@@ -15,6 +15,9 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
@@ -46,6 +49,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class MainActivity extends AppCompatActivity {
@@ -54,7 +58,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bluetooth);
-
         initBluetooth();
     }
 
@@ -85,6 +88,11 @@ public class MainActivity extends AppCompatActivity {
                 handler.postDelayed(runnable, delay);
             }
         }, delay);
+    }
+
+    private void displayDashboard() {
+        setContentView(R.layout.activity_main);
+        initDashboard();
     }
 
     @SuppressLint("DefaultLocale")
@@ -172,6 +180,9 @@ public class MainActivity extends AppCompatActivity {
     private float uvIndex;
     private float irradiance;
     private float irradianceLimit;
+    private int uvData[][];
+    private int numOfUVSensors;
+    private int sizeOfUVBuffer;
 
     private void initBluetooth() {
         //request permission to use location
@@ -248,19 +259,34 @@ public class MainActivity extends AppCompatActivity {
         rvAdapter.notifyDataSetChanged();
     }
 
+    private void enableUVNotifications() {
+        setCharacteristicNotification(leUVDataCharacteristic, true);
+    }
+
+    private void disableUVNotifications() {
+        setCharacteristicNotification(leUVDataCharacteristic, false);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void setCharacteristicNotification(BluetoothGattCharacteristic characteristic,
+                                              boolean enabled) {
+        //enable notification for the characteristic locally
+        leDeviceConnected.setCharacteristicNotification(characteristic, enabled);
+        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CHARACTERISTIC_UPDATE_NOTIFICATION_DESCRIPTOR_UUID);
+        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        //enable notification for the characteristic for the peripheral server
+        leDeviceConnected.writeDescriptor(descriptor);
+    }
+
     private ScanCallback leScanCallback =
             new ScanCallback() {
                 @Override
                 public void onScanResult(int callbackType, ScanResult result) {
                     super.onScanResult(callbackType, result);
-                    if (callbackType == ScanSettings.CALLBACK_TYPE_MATCH_LOST) {
-                        leDevicesFound.remove(result.getDevice());
-                    } else {
-                        if (!leDevicesFound.contains(result.getDevice())) {
-                            leDevicesFound.add(result.getDevice());
-                        }
+                    if (!leDevicesFound.contains(result.getDevice())) {
+                        leDevicesFound.add(result.getDevice());             //add device to list
                     }
-                    updateLeDeviceList();
+                    updateLeDeviceList();                                   //update the list on display
                 }
             };
 
@@ -268,6 +294,7 @@ public class MainActivity extends AppCompatActivity {
         new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+                //clear list of discovered devices
                 leDevicesFound.clear();
                 swipeContainer.setRefreshing(false);
                 rvAdapter.notifyDataSetChanged();
@@ -279,6 +306,7 @@ public class MainActivity extends AppCompatActivity {
                 @SuppressLint("MissingPermission")
                 @Override
                 public void buttonClick(View view, int position) {
+                    //attempt to pair with device on button click
                     leDevicesFound.get(position).connectGatt(MainActivity.this, false, leGattCallback);
                     leDevicesFound.clear();
                     rvAdapter.notifyDataSetChanged();
@@ -286,22 +314,73 @@ public class MainActivity extends AppCompatActivity {
             };
 
     private BluetoothGattCallback leGattCallback = new BluetoothGattCallback() {
+        @SuppressLint("MissingPermission")
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 //successfully connected to the GATT Server
                 leDeviceConnected = gatt;
                 connected = true;
+                //identify services from the device
+                leDeviceConnected.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 //disconnected from the GATT Server
                 leDeviceConnected = null;
                 connected = false;
             }
         }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            super.onServicesDiscovered(gatt, status);
+            if(status != BluetoothGatt.GATT_SUCCESS){
+                //if unable to get services from gatt
+                return;
+            }
+            //get UV Sense service and UV Sense Sensor Data characteristic
+            leUVService = gatt.getService(UV_SENSE_SERVICE_UUID);
+            leUVDataCharacteristic = leUVService.getCharacteristic(UV_SENSE_DATA_CHARACTERISTIC_UUID);
+            //turn on notifications for Sensor Data characteristic
+            enableUVNotifications();
+
+            numOfUVSensors = 4;
+            sizeOfUVBuffer = 3;
+            uvData = new int[sizeOfUVBuffer][numOfUVSensors];
+
+            //change activity to dashboard
+            displayDashboard();
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            super.onCharacteristicChanged(gatt, characteristic);
+            if (characteristic.equals(leUVDataCharacteristic)) {
+                byte[] data = characteristic.getValue();
+
+                for (int i = 0; i < sizeOfUVBuffer; i++) {
+                    for (int o = 0; o < numOfUVSensors; o++) {
+                        uvData[sizeOfUVBuffer-i-1][o] = (
+                                (
+                                        (data[(i*numOfUVSensors*2) + (o*2+1)] & 0xFF) << 8 |
+                                        (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
+                                ) & 0xFFFF
+                        );
+                    }
+                }
+
+                //CALL FUNCTIONS TO UPDATE GRAPHS HERE
+                //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
+                //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
+            }
+        }
     };
 
     //length of time to keep scanning: 30 seconds
     private static final long SCAN_TIME = 60000;
+    protected static final UUID UV_SENSE_SERVICE_UUID = UUID.fromString("23e490ae-dbed-41a6-8fda-b4a13d4cc679");
+    protected static final UUID UV_SENSE_DATA_CHARACTERISTIC_UUID = UUID.fromString("7f47dcfb-b44b-4703-9298-4e0e981bfcab");
+    //CCCD for notify/indicate characteristic
+    protected static final UUID CHARACTERISTIC_UPDATE_NOTIFICATION_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     private BluetoothLeScanner bluetoothLeScanner;
     private boolean scanning;
@@ -324,4 +403,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean connected = false;
     private SwipeRefreshLayout swipeContainer;
     private DevicesAdapter rvAdapter;
+
+    private BluetoothGattService leUVService;
+    private BluetoothGattCharacteristic leUVDataCharacteristic;
 }
