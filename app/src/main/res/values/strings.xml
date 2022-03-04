@@ -17,4 +17,23 @@
     <string name="attachment_summary_on">Automatically download attachments for incoming emails
     </string>
     <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="settings_title">Settings</string>
+    <string name="skin_type_array">
+        <item>Select One</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string>
+    <string name="spf_array">
+        <item>Select One</item>
+        <item>low: &lt;15</item>
+        <item>medium: 15 - 29</item>
+        <item>high: 30 - 49</item>
+        <item>very high: &gt;50</item>
+    </string>
+    <string name="skin_type_description" />
+
 </resources>

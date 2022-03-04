@@ -50,4 +50,12 @@
         app:layout_constraintStart_toStartOf="@id/vertical_guideline"
         app:layout_constraintEnd_toEndOf="@id/vertical_guideline" />
 
+    <ImageButton
+        android:id="@+id/settingsButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@android:drawable/ic_menu_edit"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

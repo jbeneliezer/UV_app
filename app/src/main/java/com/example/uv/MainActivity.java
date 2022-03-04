@@ -5,11 +5,15 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -36,6 +40,14 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         lineChart = findViewById(R.id.activity_main_linechart);
         configureLineChart();
+
+        settingsButton = findViewById(R.id.settingsButton);
+        settingsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switchToSettingsActivity();
+            }
+        });
 
         handler = new Handler();
         delay = 1000;
@@ -140,6 +152,11 @@ public class MainActivity extends AppCompatActivity {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
 
+    private void switchToSettingsActivity() {
+        Intent switchToSettings = new Intent(this, SettingsActivity.class);
+        startActivity(switchToSettings);
+    }
+
     XAxis xAxis;
     private LineChart lineChart;
     private LineDataSet valueSet;
@@ -151,4 +168,5 @@ public class MainActivity extends AppCompatActivity {
     private float uvIndex;
     private float irradiance;
     private float irradianceLimit;
+    private ImageButton settingsButton;
 }
