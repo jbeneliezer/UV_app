@@ -42,12 +42,7 @@ public class MainActivity extends AppCompatActivity {
         configureLineChart();
 
         settingsButton = findViewById(R.id.settingsButton);
-        settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                switchToSettingsActivity();
-            }
-        });
+        settingsButton.setOnClickListener(view -> switchToSettingsActivity());
 
         handler = new Handler();
         delay = 1000;

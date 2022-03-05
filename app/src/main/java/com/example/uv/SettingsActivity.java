@@ -36,9 +36,9 @@ public class SettingsActivity extends AppCompatActivity {
 //        }
 //    }
 
-    private displaySkinTypeDescription(String skin_type) {
-
-    }
+//    private displaySkinTypeDescription(String skin_type) {
+//
+//    }
 
     private ImageButton backButton;
 }
