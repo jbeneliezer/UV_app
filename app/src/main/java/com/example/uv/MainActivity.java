@@ -29,7 +29,7 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("DefaultLocale")
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     private void getUVData() {
         localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.mAxisMaximum = getTotalTime(localTime);
@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
         int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     private void configureLineChart() {
         lineChart.getLegend().setEnabled(false);
         lineChart.getDescription().setEnabled(false);
@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("DefaultLocale")
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     private void setLineChartData() {
         TextView tv = findViewById(R.id.currentUV);
         tv.setText(String.format("%.02f", uvIndex));
@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
         lineChart.invalidate();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     private int getTotalTime(@NonNull LocalTime lt) {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
