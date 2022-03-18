@@ -3,13 +3,35 @@ package com.example.uv;
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -24,31 +46,23 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
+@RequiresApi(api = Build.VERSION_CODES.O)
 public class MainActivity extends AppCompatActivity {
 
-//    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        lineChart = findViewById(R.id.activity_main_linechart);
-        configureLineChart();
+        initDashboard();
 
-        handler = new Handler();
-        delay = 1000;
-
-        handler.postDelayed( runnable = new Runnable() {
-            @RequiresApi(api = Build.VERSION_CODES.O)
-            @Override
-            public void run() {
-                getUVData();
-                setLineChartData();
-                handler.postDelayed(runnable, delay);
-            }
-        }, delay);
+        Intent bluetoothScan = new Intent(this, Bluetooth.class);
+        startActivity(bluetoothScan);
     }
 
     @Override
@@ -62,8 +76,26 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
     }
 
-    @SuppressLint("DefaultLocale")
-//    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void initDashboard() {
+        lineChart = findViewById(R.id.activity_main_linechart);
+        configureLineChart();
+
+        handler = new Handler();
+        delay = 1000;
+
+        handler.postDelayed( runnable = new Runnable() {
+            @RequiresApi(api = Build.VERSION_CODES.O)
+            @Override
+            public void run() {
+                if (Bluetooth.isConnected()) {
+                    getUVData();
+                    setLineChartData();
+                }
+                handler.postDelayed(runnable, delay);
+            }
+        }, delay);
+    }
+
     private void getUVData() {
         localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.mAxisMaximum = getTotalTime(localTime);
@@ -74,14 +106,34 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     private void processUVData() {
         irradiance += uvIndex/40;
         localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
     }
 
-//    @RequiresApi(api = Build.VERSION_CODES.O)
+//     public static void updateUVBufferSize(int size, int sensors) {
+//         sizeOfUVBuffer = size;
+//         numOfUVSensors = sensors;
+//         uvData = new int[sizeOfUVBuffer][numOfUVSensors];
+//     }
+
+//     public static void storeUVData(byte[] data) {
+//         //This function is called automatically every sizeOfUVBuffer seconds
+//         //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
+//         //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
+//         for (int i = 0; i < sizeOfUVBuffer; i++) {
+//             for (int o = 0; o < numOfUVSensors; o++) {
+//                 uvData[sizeOfUVBuffer-i-1][o] = (
+//                         (
+//                                 (data[(i*numOfUVSensors*2) + (o*2+1)] & 0xFF) << 8 |
+//                                         (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
+//                         ) & 0xFFFF
+//                 );
+//             }
+//         }
+//     }
+
     private void configureLineChart() {
         lineChart.getLegend().setEnabled(false);
         lineChart.getDescription().setEnabled(false);
@@ -123,8 +175,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    @SuppressLint("DefaultLocale")
-//    @RequiresApi(api = Build.VERSION_CODES.O)
     private void setLineChartData() {
         TextView tv = findViewById(R.id.currentUV);
         tv.setText(String.format("%.02f", uvIndex));
@@ -151,4 +201,7 @@ public class MainActivity extends AppCompatActivity {
     private float uvIndex;
     private float irradiance;
     private float irradianceLimit;
+    private static int uvData[][];
+    private static int numOfUVSensors;
+    private static int sizeOfUVBuffer;
 }
