@@ -96,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
-    @SuppressLint("DefaultLocale")
     private void getUVData() {
         localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.mAxisMaximum = getTotalTime(localTime);
@@ -113,27 +112,27 @@ public class MainActivity extends AppCompatActivity {
         int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
     }
 
-    public static void updateUVBufferSize(int size, int sensors) {
-        sizeOfUVBuffer = size;
-        numOfUVSensors = sensors;
-        uvData = new int[sizeOfUVBuffer][numOfUVSensors];
-    }
+//     public static void updateUVBufferSize(int size, int sensors) {
+//         sizeOfUVBuffer = size;
+//         numOfUVSensors = sensors;
+//         uvData = new int[sizeOfUVBuffer][numOfUVSensors];
+//     }
 
-    public static void storeUVData(byte[] data) {
-        //This function is called automatically every sizeOfUVBuffer seconds
-        //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
-        //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
-        for (int i = 0; i < sizeOfUVBuffer; i++) {
-            for (int o = 0; o < numOfUVSensors; o++) {
-                uvData[sizeOfUVBuffer-i-1][o] = (
-                        (
-                                (data[(i*numOfUVSensors*2) + (o*2+1)] & 0xFF) << 8 |
-                                        (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
-                        ) & 0xFFFF
-                );
-            }
-        }
-    }
+//     public static void storeUVData(byte[] data) {
+//         //This function is called automatically every sizeOfUVBuffer seconds
+//         //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
+//         //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
+//         for (int i = 0; i < sizeOfUVBuffer; i++) {
+//             for (int o = 0; o < numOfUVSensors; o++) {
+//                 uvData[sizeOfUVBuffer-i-1][o] = (
+//                         (
+//                                 (data[(i*numOfUVSensors*2) + (o*2+1)] & 0xFF) << 8 |
+//                                         (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
+//                         ) & 0xFFFF
+//                 );
+//             }
+//         }
+//     }
 
     private void configureLineChart() {
         lineChart.getLegend().setEnabled(false);
@@ -176,7 +175,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    @SuppressLint("DefaultLocale")
     private void setLineChartData() {
         TextView tv = findViewById(R.id.currentUV);
         tv.setText(String.format("%.02f", uvIndex));
@@ -187,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
         lineChart.invalidate();
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+//    @RequiresApi(api = Build.VERSION_CODES.O)
     private int getTotalTime(@NonNull LocalTime lt) {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
