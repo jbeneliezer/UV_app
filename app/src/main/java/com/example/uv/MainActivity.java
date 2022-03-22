@@ -82,6 +82,11 @@ public class MainActivity extends AppCompatActivity {
                     getUVData();
                     setLineChartData();
                 }
+                // testing
+                else {
+                    uvIndex = 0;
+                    setLineChartData();
+                }
                 handler.postDelayed(runnable, delay);
             }
         }, delay);
@@ -198,4 +203,9 @@ public class MainActivity extends AppCompatActivity {
     private float irradiance;
     private float irradianceLimit;
     private ImageButton settingsButton;
+
+    private static int sizeOfUVBuffer;
+    private static int numOfUVSensors;
+    private static int[][] uvData;
+
 }

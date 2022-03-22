@@ -20,7 +20,6 @@
             android:name=".Bluetooth"
             android:exported="false" />
         <activity
-        <activity>
             android:name=".SettingsActivity"
             android:exported="false"
             android:label="@string/title_activity_settings" />
