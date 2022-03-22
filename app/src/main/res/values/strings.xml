@@ -1,4 +1,39 @@
 <resources>
     <string name="app_name">UV</string>
     <string name="currentUV" />
+    <string name="title_activity_settings">SettingsActivity</string>
+
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="settings_title">Settings</string>
+    <string-array name="skin_type_array">
+        <item>Select One</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+    <string-array name="spf_array">
+        <item>Select One</item>
+        <item>low: &lt;15</item>
+        <item>medium: 15 - 29</item>
+        <item>high: 30 - 49</item>
+        <item>very high: &gt;50</item>
+    </string-array>
+    <string name="skin_type_description" />
+
 </resources>
