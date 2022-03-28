@@ -35,14 +35,9 @@ public class DevicesAdapter extends RecyclerView.Adapter<DevicesAdapter.ViewHold
             // to access the context from any ViewHolder instance.
             super(itemView);
 
-            nameDevice = (TextView) itemView.findViewById(R.id.name_device);
-            buttonConnect = (Button) itemView.findViewById(R.id.button_connect);
-            buttonConnect.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    onClickListener.buttonClick(v, getAdapterPosition());
-                }
-            });
+            nameDevice = itemView.findViewById(R.id.name_device);
+            buttonConnect = itemView.findViewById(R.id.button_connect);
+            buttonConnect.setOnClickListener(v -> onClickListener.buttonClick(v, getAdapterPosition()));
         }
     }
 

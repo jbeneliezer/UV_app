@@ -74,21 +74,18 @@ public class MainActivity extends AppCompatActivity {
         handler = new Handler();
         delay = 1000;
 
-        handler.postDelayed( runnable = new Runnable() {
-            @RequiresApi(api = Build.VERSION_CODES.O)
-            @Override
-            public void run() {
-                if (Bluetooth.isConnected()) {
-                    getUVData();
-                    setLineChartData();
-                }
-                // testing
-                else {
-                    uvIndex = 0;
-                    setLineChartData();
-                }
-                handler.postDelayed(runnable, delay);
+        handler.postDelayed( runnable = () -> {
+            if (Bluetooth.isConnected()) {
+                getUVData();
+                setLineChartData();
             }
+            // testing
+            else {
+                uvIndex = 0;
+                setLineChartData();
+            }
+            // end testing
+            handler.postDelayed(runnable, delay);
         }, delay);
     }
 
