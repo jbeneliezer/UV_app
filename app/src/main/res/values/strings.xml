@@ -35,5 +35,8 @@
         <item>very high: &gt;50</item>
     </string-array>
     <string name="skin_type_description" />
+    <string name="skin_type_label">Skin Type</string>
+    <string name="spf_label">SPF</string>
+    <string name="timeLeft" />
 
 </resources>

@@ -81,7 +81,21 @@ public class MainActivity extends AppCompatActivity {
             }
             // testing
             else {
-                uvIndex = 0;
+                localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+                xAxis.setAxisMaximum(getTotalTime(localTime));
+                float x = xAxis.mAxisMaximum;
+                uvIndex = (float) Math.random() * 10;
+                Entry e = new Entry(x, uvIndex);
+                valueSet.addEntry(e);
+                irradiance = 0;
+                for (Entry i :
+                        valueSet.getValues()) {
+                    irradiance += i.getY();
+                }
+                int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
+                float meanIr = irradiance/timeDiff;
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+                timeLeft = sdf.format((((irradianceLimit - irradiance) / meanIr) * 1000));
                 setLineChartData();
             }
             // end testing
@@ -96,7 +110,6 @@ public class MainActivity extends AppCompatActivity {
         uvIndex = (float) Math.random() * 10;
         Entry e = new Entry(x, uvIndex);
         valueSet.addEntry(e);
-
     }
 
     private void processUVData() {
@@ -170,7 +183,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void setLineChartData() {
         TextView tv = findViewById(R.id.currentUV);
-        tv.setText(String.format("%.02f", uvIndex));
+        tv.setText(String.format("Current UV Index: %.02f", uvIndex));
+        tv = findViewById(R.id.timeLeft);
+        tv.setText("Time Left: " + timeLeft);
         Log.e("values", (String.join(",", valueSet.toString())));
 
         LineData lineData = new LineData(valueSet);
@@ -195,10 +210,11 @@ public class MainActivity extends AppCompatActivity {
     private Runnable runnable;
     private LocalTime startTime;
     private LocalTime localTime;
+    private String timeLeft;
     private int delay;
     private float uvIndex;
-    private float irradiance;
-    private float irradianceLimit;
+    private float irradiance = 0;
+    private final float irradianceLimit = 1000;
     private ImageButton settingsButton;
 
     private static int sizeOfUVBuffer;

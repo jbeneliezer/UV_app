@@ -17,7 +17,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         backButton = findViewById(R.id.backButton);
         backButton.setOnClickListener(view -> finish());
-        Log.e("SettingsActivite", "started settings activity.");
+        Log.e("SettingsActivity", "started settings activity.");
     }
     private ImageButton backButton;
 
