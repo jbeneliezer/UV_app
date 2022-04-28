@@ -38,5 +38,7 @@
     <string name="skin_type_label">Skin Type</string>
     <string name="spf_label">SPF</string>
     <string name="timeLeft" />
+    <string name="channel_name">UV tech</string>
+    <string name="channel_description">UV tech</string>
 
 </resources>

@@ -17,6 +17,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.UV">
         <activity
+            android:name=".CalendarActivity"
+            android:exported="false" />
+        <activity
             android:name=".Bluetooth"
             android:exported="false" />
         <activity
