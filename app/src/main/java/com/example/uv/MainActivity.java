@@ -49,6 +49,7 @@ import java.util.Map;
 public class MainActivity extends AppCompatActivity {
 
     private static final String CHANNEL_ID = "UV tech";
+    public static int[][] uvData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,16 +72,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
 
         LocalDate d = LocalDate.now();
-        tmpHistory = history;
-        if (tmpHistory.containsKey(d)) {
-            tmpHistory.put(d, tmpHistory.get(d) + (int) irradiance);
+        if (history.containsKey(d)) {
+            history.put(d, history.get(d) + (int) irradiance);
         } else {
-            tmpHistory.put(d, (int) irradiance);
+            history.put(d, (int) irradiance);
         }
 
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(savedData));
-            tmpHistory.forEach((date, value) -> {
+            history.forEach((date, value) -> {
                 try {
                     bw.write(formatter.format(date) + " " + value + "\n");
                 } catch (IOException e) {
@@ -105,22 +105,32 @@ public class MainActivity extends AppCompatActivity {
                 .setContentText("Exposure limit exceeded. Reapply sunscreen.")
                 .setPriority(NotificationCompat.PRIORITY_MAX);
 
+        // set up linechart
         lineChart = findViewById(R.id.activity_main_linechart);
         configureLineChart();
 
+        // set up calendar button
         calendarButton = findViewById(R.id.calendarButton);
         calendarButton.setOnClickListener(view -> switchToCalendarActivity());
 
+        // set up settings button
         settingsButton = findViewById(R.id.settingsButton);
         settingsButton.setOnClickListener(view -> switchToSettingsActivity());
 
+        // set up data read
+        updateUVBufferSize(3, 4);
+        minuteData = new int[60];
+        minutePtr= 0;
+        dayData = new int[1440];
+        dayPtr = 0;
+
+        // start handler
         handler = new Handler();
 
         delay = 1000;
 
         handler.postDelayed( runnable = () -> {
             if (Bluetooth.isConnected()) {
-                getUVData();
                 processUVData();
                 setLineChartData();
             }
@@ -145,21 +155,20 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
-    private void getUVData() {
-        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
-        xAxis.mAxisMaximum = getTotalTime(localTime);
-        float x = xAxis.mAxisMaximum;
-        // average sensor value:
-//        for (int[] i: uvData) {
-//            for (int j: i) {
-//                uvIndex += j;
-//            }
-//        }
-//        uvIndex /= (uvData.length * uvData[0].length);
-        //
-        Entry e = new Entry(x, uvIndex);
-        valueSet.addEntry(e);
-    }
+//    private void getUVData() {
+//        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+//        xAxis.mAxisMaximum = getTotalTime(localTime);
+//        float x = xAxis.mAxisMaximum;
+////        for (int[] i: uvData) {
+////            for (int j: i) {
+////                minute+= j;
+////            }
+////        }
+////        uvIndex /= (uvData.length * uvData[0].length);
+//        //
+//        Entry e = new Entry(x, uvIndex);
+//        valueSet.addEntry(e);
+//    }
 
     private void processUVData() {
         irradiance += uvIndex;
@@ -182,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
          uvData = new int[sizeOfUVBuffer][numOfUVSensors];
      }
 
-     public static void storeUVData(byte[] data) {
+     public static void getUvData(byte[] data) {
          //This function is called automatically every sizeOfUVBuffer seconds
          //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
          //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
@@ -194,6 +203,23 @@ public class MainActivity extends AppCompatActivity {
                                          (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
                          ) & 0xFFFF
                  );
+             }
+         }
+         for (int[] i: uvData) {
+             for (int j: i) {
+                 int avg = 0;
+                 int divisor = numOfUVSensors;
+                 if (j != 0xFFFF) {
+                     avg += j;
+                 } else {
+                     --divisor;
+                 }
+                 if (minutePtr >= 60) {
+                     writeMinuteBuffer();
+                     minuteData = new int[60];
+                 } else {
+                     minuteData[minutePtr++] = avg/divisor;
+                 }
              }
          }
      }
@@ -271,6 +297,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private static void writeMinuteBuffer() {
+        int sum = 0;
+        for (int i: minuteData) {
+            sum += i;
+        }
+
+
+    }
+
     private int getTotalTime(@NonNull LocalTime lt) {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
@@ -334,10 +369,13 @@ public class MainActivity extends AppCompatActivity {
 
     private static int sizeOfUVBuffer;
     private static int numOfUVSensors;
-    private static int[][] uvData;
 
-    public static Map<LocalDate, Integer> history;
-    public Map<LocalDate, Integer> tmpHistory;
+    private static int[] minuteData;
+    private static int minutePtr;
+    private static int[] dayData;
+    private static int dayPtr
+
+    public static Map<LocalDate, Integer[]> history;
     private String filename;
     private File savedData;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
