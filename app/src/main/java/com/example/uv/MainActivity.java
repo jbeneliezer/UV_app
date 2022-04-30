@@ -120,7 +120,6 @@ public class MainActivity extends AppCompatActivity {
         minuteData = new int[60];
         minutePtr= 0;
         dayData = new int[1440];
-        dayPtr = 0;
 
         // start handler
         handler = new Handler();
@@ -303,6 +302,7 @@ public class MainActivity extends AppCompatActivity {
         for (int i: minuteData) {
             sum += i;
         }
+        dayData[(int) System.currentTimeMillis() / (1000 * 60) % 1440] = sum;
 
 
     }
@@ -374,7 +374,6 @@ public class MainActivity extends AppCompatActivity {
     private static int[] minuteData;
     private static int minutePtr;
     private static int[] dayData;
-    private static int dayPtr
 
     public static Map<LocalDate, Integer[]> history;
     private String filename;
