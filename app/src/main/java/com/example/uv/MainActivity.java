@@ -63,17 +63,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onPause() {
-
-        super.onPause();
-    }
-
-    @Override
     protected void onDestroy() {
 
         LocalDate d = LocalDate.now();
         if (history.containsKey(d)) {
             history.put(d, history.get(d) + (int) irradiance);
+            int[] tmp = new int[1440];
+            for (int i = 0; i < 1440; ++i) {
+                tmp[i] = history.get(d)[i] + dayData[i];
+            }
         } else {
             history.put(d, (int) irradiance);
         }
@@ -281,15 +279,18 @@ public class MainActivity extends AppCompatActivity {
     private void configureStorage() {
         history = new HashMap<>();
         try {
-            BufferedReader br = new BufferedReader(new FileReader("data.txt"));
-            String line = br.readLine();
-            Log.e("read", line);
-            while (line != null) {
-                String[] spl = line.split(" ");
-                LocalDate date = LocalDate.from(formatter.parse(spl[0]));
-                int value = Integer.parseInt(spl[1]);
-                history.put(date, value);
+            File folder = new File(getApplicationContext().getFilesDir(), "data");
+            for (File file: folder.listFiles()) {
+                BufferedReader br = new BufferedReader(new FileReader(file));
+                String line = br.readLine();
+                Integer[] values = new Integer[1440];
+                int i = 0;
+                while (line != null) {
+                    values[i++] = Integer.parseInt(line);
+                }
+                history.put(LocalDate.parse(file.getName().split("\\.")[0]), values);
             }
+
         } catch (FileNotFoundException e) {
             savedData = new File(getApplicationContext().getFilesDir(), "data.txt");
         } catch (IOException e) {
