@@ -36,8 +36,12 @@ public class CalendarActivity extends AppCompatActivity {
             public void bind(DayViewContainer dayViewContainer, CalendarDay calendarDay) {
                 LocalDate date = calendarDay.getDate();
                 if (MainActivity.history.containsKey(date)) {
-                    dayViewContainer.textView.setBackgroundColor(levels[getSeverity(MainActivity.history.get(date))]);
-                    dayViewContainer.irr.setText(MainActivity.history.get(date));
+                    int severity = 0;
+                    for (int i: MainActivity.history.get(date)) {
+                        severity += i;
+                    }
+                    dayViewContainer.textView.setBackgroundColor(levels[getSeverity(severity)]);
+                    dayViewContainer.irr.setText(severity);
                 } else {
                     dayViewContainer.textView.setBackgroundColor(levels[0]);
                 }
