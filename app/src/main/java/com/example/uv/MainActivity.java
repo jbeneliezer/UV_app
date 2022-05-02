@@ -1,18 +1,11 @@
 package com.example.uv;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
 
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -30,10 +23,11 @@ import com.github.mikephil.charting.formatter.ValueFormatter;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.time.Clock;
 import java.time.Duration;
@@ -41,21 +35,39 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String CHANNEL_ID = "UV tech";
+    public static final int[] MED = {128, 128, 251, 351, 467, 467, 467};
+    public static final int[] PROTECTION = {1, 1, 15, 30, 50};
     public static int[][] uvData;
+
+    public MainActivity() {
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        today = LocalDate.now();
+        dayData = new double[1440];
+        configureStorage();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // linechart
+        lineChart = findViewById(R.id.activity_main_linechart);
+
         initDashboard();
+
+        skin_type = 0;
+        spf = 0;
+        irradiance = 0;
 
 //        Intent bluetoothScan = new Intent(this, Bluetooth.class);
 //        startActivity(bluetoothScan);
@@ -63,49 +75,57 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
-
-        LocalDate d = LocalDate.now();
-        if (history.containsKey(d)) {
-            history.put(d, history.get(d) + (int) irradiance);
-            int[] tmp = new int[1440];
-            for (int i = 0; i < 1440; ++i) {
-                tmp[i] = history.get(d)[i] + dayData[i];
-            }
-        } else {
-            history.put(d, (int) irradiance);
-        }
-
+    protected void onPause() {
         try {
-            BufferedWriter bw = new BufferedWriter(new FileWriter(savedData));
-            history.forEach((date, value) -> {
-                try {
-                    bw.write(formatter.format(date) + " " + value + "\n");
-                } catch (IOException e) {
-                    e.printStackTrace();
+            currentData = new File(getApplicationContext().getFilesDir() + "/data/" + today.toString() + ".txt");
+            if (currentData.exists()) {
+                currentData.delete();
+            }
+            currentData.createNewFile();
+            BufferedWriter bw = new BufferedWriter(new FileWriter(currentData));
+            try {
+                for (double i: dayData) {
+                    bw.write(i + "\n");
                 }
-            });
+                bw.flush();
+                bw.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        super.onDestroy();
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        List<Entry> values = new ArrayList<>();
+        int start = 0;
+        int end = getTotalTime(LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)))) / 60;
+        while (dayData[start] == 0 && start < end) ++start;
+        double[] subset = Arrays.copyOfRange(dayData, start, end);
+        for (int i = 0; i < subset.length; ++i) {
+            for (int j = 0; j < 60; ++j) {
+                values.add(new Entry(start + i + j, (float) subset[i]));
+            }
+        }
+        valueSet = new LineDataSet(values, "UV Index");
+        configureLineChart();
+        setLineChartData();
+        super.onResume();
     }
 
     private void initDashboard() {
-        // configure storage
-        configureStorage();
 
-        // set up alarm
-        createNotificationChannel();
-        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
-                .setContentTitle("Warning!")
-                .setContentText("Exposure limit exceeded. Reapply sunscreen.")
-                .setPriority(NotificationCompat.PRIORITY_MAX);
+//        // set up alarm
+//        createNotificationChannel();
+//        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+//                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
+//                .setContentTitle("Warning!")
+//                .setContentText("Exposure limit exceeded. Reapply sunscreen.")
+//                .setPriority(NotificationCompat.PRIORITY_MAX);
 
-        // set up linechart
-        lineChart = findViewById(R.id.activity_main_linechart);
-        configureLineChart();
 
         // set up calendar button
         calendarButton = findViewById(R.id.calendarButton);
@@ -117,9 +137,8 @@ public class MainActivity extends AppCompatActivity {
 
         // set up data read
         updateUVBufferSize(3, 4);
-        minuteData = new int[60];
+        minuteData = new double[60];
         minutePtr= 0;
-        dayData = new int[1440];
 
         // start handler
         handler = new Handler();
@@ -128,23 +147,20 @@ public class MainActivity extends AppCompatActivity {
 
         handler.postDelayed( runnable = () -> {
             if (Bluetooth.isConnected()) {
-                processUVData();
                 setLineChartData();
             }
             // testing
             else {
                 localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
                 xAxis.setAxisMaximum(getTotalTime(localTime));
-                float x = xAxis.mAxisMaximum;
                 uvIndex = (float) Math.random() * 10;
-                Entry e = new Entry(x, uvIndex);
-                valueSet.addEntry(e);
-                irradiance = 0;
-                for (Entry i :
-                        valueSet.getValues()) {
-                    irradiance += i.getY();
-                }
-                processUVData();
+
+//                processUVData(uvIndex);
+                Random rd = new Random();
+                byte[] arr = new byte[24];
+                rd.nextBytes(arr);
+                getUvData(arr);
+
                 setLineChartData();
             }
             // end testing
@@ -152,34 +168,30 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
-//    private void getUVData() {
-//        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
-//        xAxis.mAxisMaximum = getTotalTime(localTime);
-//        float x = xAxis.mAxisMaximum;
-////        for (int[] i: uvData) {
-////            for (int j: i) {
-////                minute+= j;
-////            }
-////        }
-////        uvIndex /= (uvData.length * uvData[0].length);
-//        //
-//        Entry e = new Entry(x, uvIndex);
-//        valueSet.addEntry(e);
-//    }
-
-    private void processUVData() {
-        irradiance += uvIndex;
-        localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
-        int timeDiff = getTotalTime(localTime) - getTotalTime(startTime);
-        float meanIr = irradiance/timeDiff;
+    private static void processUVData(double uv) {
+        irradiance += (uv * 0.025) / PROTECTION[spf];
+        irradianceLimit = MED[skin_type];
         irradianceLeft = irradianceLimit - irradiance;
-        timeLeft = irradianceLeft/meanIr;
-        if (timeLeft < 0) {
-            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+        xAxis.setAxisMaximum(getTotalTime(localTime));
+        float x = xAxis.mAxisMaximum;
+        Entry e = new Entry(x, (float) uv);
+        valueSet.addEntry(e);
 
-            notificationManager.notify(0, builder.build());
+        float avgIrr = 0;
+        for (Entry entry : valueSet.getValues()) {
+            avgIrr += entry.getY();
         }
-        stringTimeLeft = toTime((int) timeLeft);
+
+        avgIrr = avgIrr / valueSet.getValues().size();
+        avgIrr = (float) ((avgIrr * 0.025) / PROTECTION[spf]);
+        timeLeft = toTime((int) (irradianceLeft / avgIrr));
+
+//        if (timeLeft < 0) {
+//            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+//
+//            notificationManager.notify(0, builder.build());
+//        }
     }
 
      public static void updateUVBufferSize(int size, int sensors) {
@@ -193,31 +205,32 @@ public class MainActivity extends AppCompatActivity {
          //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
          //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
          for (int i = 0; i < sizeOfUVBuffer; i++) {
-             for (int o = 0; o < numOfUVSensors; o++) {
-                 uvData[sizeOfUVBuffer-i-1][o] = (
+             for (int j = 0; j < numOfUVSensors; j++) {
+                 uvData[sizeOfUVBuffer-i-1][j] = (
                          (
-                                 (data[(i*numOfUVSensors*2) + (o*2+1)] & 0xFF) << 8 |
-                                         (data[(i*numOfUVSensors*2) + (o*2)] & 0xFF) << 0
+                                 (data[(i*numOfUVSensors*2) + (j*2+1)] & 0xFF) << 8 |
+                                         (data[(i*numOfUVSensors*2) + (j*2)] & 0xFF) << 0
                          ) & 0xFFFF
                  );
              }
          }
          for (int[] i: uvData) {
+             double avg = 0;
+             int divisor = numOfUVSensors;
              for (int j: i) {
-                 int avg = 0;
-                 int divisor = numOfUVSensors;
                  if (j != 0xFFFF) {
                      avg += j;
                  } else {
                      --divisor;
                  }
-                 if (minutePtr >= 60) {
-                     writeMinuteBuffer();
-                     minuteData = new int[60];
-                 } else {
-                     minuteData[minutePtr++] = avg/divisor;
-                 }
              }
+             if (minutePtr >= 60) {
+                writeMinuteBuffer();
+                minuteData = new double[60];
+             }
+             avg = avg/(divisor * 100);
+             processUVData(avg);
+             minuteData[minutePtr++] = avg;
          }
      }
 
@@ -247,9 +260,9 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
-        ArrayList<Entry> start = new ArrayList<>();
-        start.add(new Entry(xAxis.mAxisMinimum, 0));
-        valueSet = new LineDataSet(start, "UV Index");
+//        ArrayList<Entry> start = new ArrayList<>();
+//        start.add(new Entry(xAxis.mAxisMinimum, 0));
+//        valueSet = new LineDataSet(start, "UV Index");
         valueSet.setDrawCircles(false);
         valueSet.setDrawValues(false);
         valueSet.setLineWidth(3);
@@ -267,8 +280,7 @@ public class MainActivity extends AppCompatActivity {
         ProgressBar pb = findViewById(R.id.progressBar);
         pb.setProgress((int) ((irradiance/irradianceLimit) * 100));
         tv = findViewById(R.id.timeLeft);
-        tv.setText("Time Left: " + stringTimeLeft);
-        Log.e("values", (String.join(",", valueSet.toString())));
+        tv.setText("Time Left: " + timeLeft);
 
         LineData lineData = new LineData(valueSet);
         lineChart.setData(lineData);
@@ -276,42 +288,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void configureStorage() {
-        history = new HashMap<>();
         try {
-            File folder = new File(getApplicationContext().getFilesDir(), "data");
-            for (File file: folder.listFiles()) {
-                BufferedReader br = new BufferedReader(new FileReader(file));
-                String line = br.readLine();
-                Integer[] values = new Integer[1440];
-                int i = 0;
-                while (line != null) {
-                    values[i++] = Integer.parseInt(line);
+            File folder = new File(getApplicationContext().getFilesDir(), "/data");
+            if (!folder.exists()) {
+                folder.mkdir();
+            } else {
+                File[] fileList = folder.listFiles();
+                if (fileList != null) {
+                    for (File file : fileList) {
+                        if (file.getName().split("\\.")[0].equals(today.toString())) {
+                            BufferedReader br = new BufferedReader(new FileReader(file));
+                            String line;
+                            int i = 0;
+                            while ((line = br.readLine()) != null) {
+                                dayData[i++] = Double.parseDouble(line);
+                            }
+                        }
+                    }
                 }
-                history.put(LocalDate.parse(file.getName().split("\\.")[0]), values);
             }
-
-        } catch (FileNotFoundException e) {
-            savedData = new File(getApplicationContext().getFilesDir(), "data.txt");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private static void writeMinuteBuffer() {
-        int sum = 0;
-        for (int i: minuteData) {
-            sum += i;
+        double avg = 0;
+        for (double i: minuteData) {
+            avg += i;
         }
-        dayData[(int) System.currentTimeMillis() / (1000 * 60) % 1440] = sum;
-
-
+        dayData[(int) (System.currentTimeMillis() / (1000 * 60)) % 1440] = avg / 60;
+        minutePtr = 0;
     }
 
-    private int getTotalTime(@NonNull LocalTime lt) {
+    protected static int getTotalTime(@NonNull LocalTime lt) {
         return lt.getHour() * 3600 + lt.getMinute() * 60 + lt.getSecond();
     }
 
-    private String toTime(int seconds) {
+    private static String toTime(int seconds) {
         int hours = seconds / 3600;
         int minutes = (seconds % 3600) / 60;
         seconds %= 60;
@@ -327,21 +341,21 @@ public class MainActivity extends AppCompatActivity {
         startActivity(switchToSettings);
     }
 
-    private void createNotificationChannel() {
-        // Create the NotificationChannel, but only on API 26+ because
-        // the NotificationChannel class is new and not in the support library
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            CharSequence name = getString(R.string.channel_name);
-            String description = getString(R.string.channel_description);
-            int importance = NotificationManager.IMPORTANCE_MAX;
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-            channel.setDescription(description);
-            // Register the channel with the system; you can't change the importance
-            // or other notification behaviors after this
-            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-            notificationManager.createNotificationChannel(channel);
-        }
-    }
+//    private void createNotificationChannel() {
+//        // Create the NotificationChannel, but only on API 26+ because
+//        // the NotificationChannel class is new and not in the support library
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//            CharSequence name = getString(R.string.channel_name);
+//            String description = getString(R.string.channel_description);
+//            int importance = NotificationManager.IMPORTANCE_MAX;
+//            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+//            channel.setDescription(description);
+//            // Register the channel with the system; you can't change the importance
+//            // or other notification behaviors after this
+//            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+//            notificationManager.createNotificationChannel(channel);
+//        }
+//    }
 
 
 //    public void startHandlerThread() {
@@ -350,35 +364,37 @@ public class MainActivity extends AppCompatActivity {
 //        handler = new Handler(handlerThread.getLooper());
 //    }
 
-    XAxis xAxis;
+    static XAxis xAxis;
     private LineChart lineChart;
-    private LineDataSet valueSet;
+    private static LineDataSet valueSet;
     private Handler handler;
 //    private HandlerThread handlerThread;
     private Runnable runnable;
     private LocalTime startTime;
     private LocalTime localTime;
-    private String stringTimeLeft;
-    private float timeLeft;
+    private static String timeLeft;
     private int delay;
-    private float uvIndex;
-    private float irradiance = 0;
-    private final float irradianceLimit = 100;
-    private float irradianceLeft = irradianceLimit;
+
+    private double uvIndex;
+    private static double irradiance;
+    private static double irradianceLimit;
+    private static double irradianceLeft;
+
     private ImageButton calendarButton;
     private ImageButton settingsButton;
 
     private static int sizeOfUVBuffer;
     private static int numOfUVSensors;
 
-    private static int[] minuteData;
+    private static double[] minuteData;
     private static int minutePtr;
-    private static int[] dayData;
+    private static double[] dayData;
+    private File currentData;
+    private LocalDate today;
 
-    public static Map<LocalDate, Integer[]> history;
-    private String filename;
-    private File savedData;
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    public static int skin_type;
+    public static int spf;
 
     private NotificationCompat.Builder builder;
+
 }
