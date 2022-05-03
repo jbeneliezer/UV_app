@@ -3,6 +3,9 @@ package com.example.uv;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.graphics.drawable.IconCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -10,6 +13,8 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -24,6 +29,7 @@ import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.pm.PackageManager;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,6 +42,8 @@ import java.util.UUID;
 
 @RequiresApi(api = Build.VERSION_CODES.O)
 public class Bluetooth extends AppCompatActivity {
+
+    private static final String CHANNEL_ID = "UV tech";
 
     //length of time to keep scanning: 30 seconds
     private static final long SCAN_TIME = 60000;
@@ -61,6 +69,8 @@ public class Bluetooth extends AppCompatActivity {
             .setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
             .build();
 
+
+
     private static List<BluetoothDevice> leDevicesFound = new ArrayList<BluetoothDevice>();
     private static BluetoothGatt leDeviceConnected = null;
     private static boolean connected = false;
@@ -75,6 +85,19 @@ public class Bluetooth extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_bluetooth);
         initBluetooth();
+
+
+        // set up alarm
+        createNotificationChannel();
+
+        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
+                .setSmallIcon(IconCompat.createWithBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.logo)))
+                .setContentTitle("Warning!")
+                .setContentText("UV exposure limit exceeded.")
+                .setColor(0xff9026ed)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
     }
 
     private void initBluetooth() {
@@ -257,10 +280,37 @@ public class Bluetooth extends AppCompatActivity {
             if (characteristic.equals(leUVDataCharacteristic)) {
                 byte[] data = characteristic.getValue();
 
-                MainActivity.getUvData(data);
+                if (!MainActivity.getUvData(data)) {
+                    sendNotification();
+                }
 
                 //CALL FUNCTIONS TO UPDATE GRAPHS HERE
             }
         }
     };
+
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getString(R.string.channel_name);
+            String description = getString(R.string.channel_description);
+            int importance = NotificationManager.IMPORTANCE_MAX;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private void sendNotification() {
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        notificationManager.notify(0, builder.build());
+    }
+
+
+    private NotificationCompat.Builder builder;
 }

@@ -3,9 +3,16 @@ package com.example.uv;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.graphics.drawable.IconCompat;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -69,8 +76,8 @@ public class MainActivity extends AppCompatActivity {
         spf = 0;
         irradiance = 0;
 
-//        Intent bluetoothScan = new Intent(this, Bluetooth.class);
-//        startActivity(bluetoothScan);
+        Intent bluetoothScan = new Intent(this, Bluetooth.class);
+        startActivity(bluetoothScan);
 
     }
 
@@ -118,14 +125,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void initDashboard() {
 
-//        // set up alarm
-//        createNotificationChannel();
-//        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-//                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
-//                .setContentTitle("Warning!")
-//                .setContentText("Exposure limit exceeded. Reapply sunscreen.")
-//                .setPriority(NotificationCompat.PRIORITY_MAX);
+        // set up alarm
+        createNotificationChannel();
 
+        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
+                .setSmallIcon(IconCompat.createWithBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.logo)))
+                .setContentTitle("Warning!")
+                .setContentText("UV exposure limit exceeded.")
+                .setColor(0xff9026ed)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         // set up calendar button
         calendarButton = findViewById(R.id.calendarButton);
@@ -166,13 +176,14 @@ public class MainActivity extends AppCompatActivity {
                 getUvData(arr1);
 
                 setLineChartData();
+
             }
             // end testing
             handler.postDelayed(runnable, delay);
         }, delay);
     }
 
-    private static void processUVData(double uv, int timeOffset) {
+    private static boolean processUVData(double uv, int timeOffset) {
         irradiance += (uv * 0.025) / PROTECTION[spf];
         irradianceLimit = MED[skin_type];
         irradianceLeft = irradianceLimit - irradiance;
@@ -189,13 +200,11 @@ public class MainActivity extends AppCompatActivity {
 
         avgIrr = avgIrr / valueSet.getValues().size();
         avgIrr = (float) ((avgIrr * 0.025) / PROTECTION[spf]);
-        timeLeft = toTime((int) (irradianceLeft / avgIrr));
+        int t = (int) (irradianceLeft / avgIrr);
+        timeLeft = toTime(t);
 
-//        if (timeLeft < 0) {
-//            NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
-//
-//            notificationManager.notify(0, builder.build());
-//        }
+        return (t > 0);
+
     }
 
      public static void updateUVBufferSize(int size, int sensors) {
@@ -204,7 +213,9 @@ public class MainActivity extends AppCompatActivity {
          uvData = new int[sizeOfUVBuffer][numOfUVSensors];
      }
 
-     public static void getUvData(byte[] data) {
+     public static boolean getUvData(byte[] data) {
+         boolean ret = true;
+
          //This function is called automatically every sizeOfUVBuffer seconds
          //uvData[0][x] is most recent data, uvData[x][0] correlates to sensor 0
          //uvData[sizeOfUVBuffer-1][x] is latest data, uvData[x][numOfUVSensors-1] correlates to last sensor
@@ -233,9 +244,10 @@ public class MainActivity extends AppCompatActivity {
                 minuteData = new double[60];
              }
              avg = avg/(divisor * 100);
-             processUVData(avg, i);
+             ret = processUVData(avg, i);
              minuteData[minutePtr++] = avg;
          }
+         return ret;
      }
 
     private void configureLineChart() {
@@ -345,34 +357,26 @@ public class MainActivity extends AppCompatActivity {
         startActivity(switchToSettings);
     }
 
-//    private void createNotificationChannel() {
-//        // Create the NotificationChannel, but only on API 26+ because
-//        // the NotificationChannel class is new and not in the support library
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//            CharSequence name = getString(R.string.channel_name);
-//            String description = getString(R.string.channel_description);
-//            int importance = NotificationManager.IMPORTANCE_MAX;
-//            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
-//            channel.setDescription(description);
-//            // Register the channel with the system; you can't change the importance
-//            // or other notification behaviors after this
-//            NotificationManager notificationManager = getSystemService(NotificationManager.class);
-//            notificationManager.createNotificationChannel(channel);
-//        }
-//    }
-
-
-//    public void startHandlerThread() {
-//        handlerThread = new HandlerThread("HandlerThread");
-//        handlerThread.start();
-//        handler = new Handler(handlerThread.getLooper());
-//    }
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getString(R.string.channel_name);
+            String description = getString(R.string.channel_description);
+            int importance = NotificationManager.IMPORTANCE_MAX;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
 
     static XAxis xAxis;
     private LineChart lineChart;
     private static LineDataSet valueSet;
     private Handler handler;
-//    private HandlerThread handlerThread;
     private Runnable runnable;
     private LocalTime startTime;
     private LocalTime localTime;
