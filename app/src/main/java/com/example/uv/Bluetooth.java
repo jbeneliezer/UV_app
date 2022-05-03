@@ -257,7 +257,7 @@ public class Bluetooth extends AppCompatActivity {
             if (characteristic.equals(leUVDataCharacteristic)) {
                 byte[] data = characteristic.getValue();
 
-                MainActivity.storeUVData(data);
+                MainActivity.getUvData(data);
 
                 //CALL FUNCTIONS TO UPDATE GRAPHS HERE
             }
