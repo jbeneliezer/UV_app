@@ -45,7 +45,7 @@ import java.util.Random;
 public class MainActivity extends AppCompatActivity {
 
     private static final String CHANNEL_ID = "UV tech";
-    public static final int[] MED = {128, 128, 251, 351, 467, 467, 467};
+    public static final int[] MED = {200, 200, 250, 300, 450, 600, 1000};
     public static final int[] PROTECTION = {1, 1, 15, 30, 50};
     public static int[][] uvData;
 
@@ -158,8 +158,12 @@ public class MainActivity extends AppCompatActivity {
 //                processUVData(uvIndex);
                 Random rd = new Random();
                 byte[] arr = new byte[24];
+                byte[] arr1 = new byte[24];
                 rd.nextBytes(arr);
-                getUvData(arr);
+                for (int i = 0; i < 24; ++i) {
+                    arr1[i] = (byte) (arr[i] % 10);
+                }
+                getUvData(arr1);
 
                 setLineChartData();
             }
@@ -168,13 +172,13 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
-    private static void processUVData(double uv) {
+    private static void processUVData(double uv, int timeOffset) {
         irradiance += (uv * 0.025) / PROTECTION[spf];
         irradianceLimit = MED[skin_type];
         irradianceLeft = irradianceLimit - irradiance;
         LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.setAxisMaximum(getTotalTime(localTime));
-        float x = xAxis.mAxisMaximum;
+        float x = xAxis.mAxisMaximum - timeOffset;
         Entry e = new Entry(x, (float) uv);
         valueSet.addEntry(e);
 
@@ -214,10 +218,10 @@ public class MainActivity extends AppCompatActivity {
                  );
              }
          }
-         for (int[] i: uvData) {
+         for (int i = sizeOfUVBuffer - 1; i >= 0; i--) {
              double avg = 0;
              int divisor = numOfUVSensors;
-             for (int j: i) {
+             for (int j: uvData[i]) {
                  if (j != 0xFFFF) {
                      avg += j;
                  } else {
@@ -229,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
                 minuteData = new double[60];
              }
              avg = avg/(divisor * 100);
-             processUVData(avg);
+             processUVData(avg, i);
              minuteData[minutePtr++] = avg;
          }
      }
@@ -263,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
 //        ArrayList<Entry> start = new ArrayList<>();
 //        start.add(new Entry(xAxis.mAxisMinimum, 0));
 //        valueSet = new LineDataSet(start, "UV Index");
-        valueSet.setDrawCircles(false);
+        valueSet.setDrawCircles(true);
         valueSet.setDrawValues(false);
         valueSet.setLineWidth(3);
         valueSet.setColor(Color.GREEN);
@@ -271,7 +275,7 @@ public class MainActivity extends AppCompatActivity {
         valueSet.setFillAlpha(100);
         valueSet.setDrawFilled(true);
         valueSet.setFillColor(Color.BLUE);
-        valueSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        valueSet.setMode(LineDataSet.Mode.LINEAR);
     }
 
     private void setLineChartData() {
