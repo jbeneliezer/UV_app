@@ -16,12 +16,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
@@ -75,9 +77,10 @@ public class MainActivity extends AppCompatActivity {
         skin_type = 0;
         spf = 0;
         irradiance = 0;
+        graphRange = 60;
 
-        Intent bluetoothScan = new Intent(this, Bluetooth.class);
-        startActivity(bluetoothScan);
+//        Intent bluetoothScan = new Intent(this, Bluetooth.class);
+//        startActivity(bluetoothScan);
 
     }
 
@@ -107,17 +110,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
-        List<Entry> values = new ArrayList<>();
-        int start = 0;
-        int end = getTotalTime(LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)))) / 60;
-        while (dayData[start] == 0 && start < end) ++start;
-        double[] subset = Arrays.copyOfRange(dayData, start, end);
-        for (int i = 0; i < subset.length; ++i) {
-            for (int j = 0; j < 60; ++j) {
-                values.add(new Entry(start + i + j, (float) subset[i]));
-            }
-        }
-        valueSet = new LineDataSet(values, "UV Index");
+        valueSet = getDayData(graphRange);
         configureLineChart();
         setLineChartData();
         super.onResume();
@@ -145,6 +138,15 @@ public class MainActivity extends AppCompatActivity {
         settingsButton = findViewById(R.id.settingsButton);
         settingsButton.setOnClickListener(view -> switchToSettingsActivity());
 
+        Button hourButton = findViewById(R.id.hour);
+        hourButton.setOnClickListener(view -> setGraphRange(60));
+
+        Button halfButton = findViewById(R.id.half);
+        halfButton.setOnClickListener(view -> setGraphRange(30));
+
+        Button _15Button= findViewById(R.id.half);
+        _15Button.setOnClickListener(view -> setGraphRange(15));
+
         // set up data read
         updateUVBufferSize(3, 4);
         minuteData = new double[60];
@@ -171,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
                 byte[] arr1 = new byte[24];
                 rd.nextBytes(arr);
                 for (int i = 0; i < 24; ++i) {
-                    arr1[i] = (byte) (arr[i] % 10);
+                    arr1[i] = (byte) (Math.abs(arr[i] % 10));
                 }
                 getUvData(arr1);
 
@@ -229,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
                  );
              }
          }
-         for (int i = sizeOfUVBuffer - 1; i >= 0; i--) {
+         for (int i = sizeOfUVBuffer - 1; i >= 0; --i) {
              double avg = 0;
              int divisor = numOfUVSensors;
              for (int j: uvData[i]) {
@@ -259,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
         lineChart.getAxisRight().setDrawGridLines(false);
         lineChart.getXAxis().setTextColor(Color.WHITE);
         lineChart.getAxisLeft().setTextColor(Color.WHITE);
+//        lineChart.setVisibleYRange(0, 12, YAxis.AxisDependency.LEFT);
 
         xAxis = lineChart.getXAxis();
         startTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
@@ -348,6 +351,20 @@ public class MainActivity extends AppCompatActivity {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
+    private LineDataSet getDayData(int r) {
+        List<Entry> values = new ArrayList<>();
+        int end = getTotalTime(LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)))) / 60;
+        int start = end - r;
+        while (dayData[start] == 0 && start < end) ++start;
+        double[] subset = Arrays.copyOfRange(dayData, start, end);
+        for (int i = 0; i < subset.length; ++i) {
+            for (int j = 0; j < 60; ++j) {
+                values.add(new Entry(start + i + j, (float) subset[i]));
+            }
+        }
+        return new LineDataSet(values, "UV Index");
+    }
+
     private void switchToCalendarActivity() {
         Intent switchToCalendar= new Intent(this, CalendarActivity.class);
         startActivity(switchToCalendar);
@@ -355,6 +372,13 @@ public class MainActivity extends AppCompatActivity {
     private void switchToSettingsActivity() {
         Intent switchToSettings = new Intent(this, SettingsActivity.class);
         startActivity(switchToSettings);
+    }
+
+    private void setGraphRange(int num) {
+        graphRange = num;
+        valueSet = getDayData(num);
+        configureLineChart();
+        setLineChartData();
     }
 
     private void createNotificationChannel() {
@@ -399,6 +423,7 @@ public class MainActivity extends AppCompatActivity {
     private static double[] dayData;
     private File currentData;
     private LocalDate today;
+    private int graphRange;
 
     public static int skin_type;
     public static int spf;

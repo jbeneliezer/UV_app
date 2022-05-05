@@ -311,6 +311,5 @@ public class Bluetooth extends AppCompatActivity {
         notificationManager.notify(0, builder.build());
     }
 
-
     private NotificationCompat.Builder builder;
 }

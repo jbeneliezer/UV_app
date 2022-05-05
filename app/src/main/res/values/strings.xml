@@ -40,5 +40,8 @@
     <string name="timeLeft" />
     <string name="channel_name">UV tech</string>
     <string name="channel_description">UV tech</string>
+    <string name="_1h">1h</string>
+    <string name="_30m">30m</string>
+    <string name="_15m">15m</string>
 
 </resources>
