@@ -263,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
         lineChart.getAxisLeft().setTextColor(Color.WHITE);
         YAxis yAxis = lineChart.getAxisLeft();
         yAxis.setAxisMinimum(0);
-        yAxis.setAxisMaximum(12);
+        yAxis.setAxisMaximum(11);
 
         xAxis = lineChart.getXAxis();
         startTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
