@@ -125,7 +125,7 @@ public class CalendarActivity extends AppCompatActivity implements CalendarView.
                         int i = 0;
                         while ((line = br.readLine()) != null) {
                             double val = Double.parseDouble(line);
-                            valueSet.addEntry(new Entry(i * 60, (float) val));
+                            valueSet.addEntry(new Entry(i, (float) val));
                             irradiance += (val * 0.025) / MainActivity.PROTECTION[MainActivity.spf];
                             ++i;
                         }
