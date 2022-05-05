@@ -139,13 +139,13 @@ public class MainActivity extends AppCompatActivity {
         settingsButton.setOnClickListener(view -> switchToSettingsActivity());
 
         Button hourButton = findViewById(R.id.hour);
-        hourButton.setOnClickListener(view -> setGraphRange(60));
+        hourButton.setOnClickListener(view -> setGraphRange(3600));
 
         Button halfButton = findViewById(R.id.half);
-        halfButton.setOnClickListener(view -> setGraphRange(30));
+        halfButton.setOnClickListener(view -> setGraphRange(1800));
 
         Button _15Button= findViewById(R.id.fifteen);
-        _15Button.setOnClickListener(view -> setGraphRange(15));
+        _15Button.setOnClickListener(view -> setGraphRange(900));
 
         // set up data read
         updateUVBufferSize(3, 4);
