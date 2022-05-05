@@ -184,13 +184,13 @@ public class MainActivity extends AppCompatActivity {
         }, delay);
     }
 
-    private static boolean processUVData(double uv) {
+    private static boolean processUVData(double uv, int timeOffset) {
         irradiance += (uv * 0.025) / PROTECTION[spf];
         irradianceLimit = MED[skin_type];
         irradianceLeft = irradianceLimit - irradiance;
         LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.setAxisMaximum(getTotalTime(localTime));
-        float x = xAxis.mAxisMaximum;
+        float x = xAxis.mAxisMaximum - timeOffset;
         Entry e = new Entry(x, (float) uv);
         valueSet.addEntry(e);
 
@@ -229,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
                  );
              }
          }
-         for (int i = 0; i < sizeOfUVBuffer; ++i) {
+         for (int i = sizeOfUVBuffer - 1; i >= 0; --i) {
              double avg = 0;
              int divisor = numOfUVSensors;
              for (int j: uvData[i]) {
@@ -242,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
              LocalTime lt = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
              avg = avg/(divisor * 100);
              dayData[getTotalTime(lt)] = avg;
-             ret = processUVData(avg);
+             ret = processUVData(avg, i);
          }
          return ret;
      }
