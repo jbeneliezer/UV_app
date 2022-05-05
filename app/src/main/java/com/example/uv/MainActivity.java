@@ -144,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         Button halfButton = findViewById(R.id.half);
         halfButton.setOnClickListener(view -> setGraphRange(30));
 
-        Button _15Button= findViewById(R.id.half);
+        Button _15Button= findViewById(R.id.fifteen);
         _15Button.setOnClickListener(view -> setGraphRange(15));
 
         // set up data read
@@ -191,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
         irradianceLeft = irradianceLimit - irradiance;
         LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
         xAxis.setAxisMaximum(getTotalTime(localTime));
-        float x = xAxis.mAxisMaximum - timeOffset;
+        float x = (float) (xAxis.mAxisMaximum - timeOffset);
         Entry e = new Entry(x, (float) uv);
         valueSet.addEntry(e);
 
@@ -261,7 +261,9 @@ public class MainActivity extends AppCompatActivity {
         lineChart.getAxisRight().setDrawGridLines(false);
         lineChart.getXAxis().setTextColor(Color.WHITE);
         lineChart.getAxisLeft().setTextColor(Color.WHITE);
-//        lineChart.setVisibleYRange(0, 12, YAxis.AxisDependency.LEFT);
+        YAxis yAxis = lineChart.getAxisLeft();
+        yAxis.setAxisMinimum(0);
+        yAxis.setAxisMaximum(12);
 
         xAxis = lineChart.getXAxis();
         startTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
@@ -359,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
         double[] subset = Arrays.copyOfRange(dayData, start, end);
         for (int i = 0; i < subset.length; ++i) {
             for (int j = 0; j < 60; ++j) {
-                values.add(new Entry(start + i + j, (float) subset[i]));
+                values.add(new Entry(start * 60 + i * 60 + j, (float) subset[i]));
             }
         }
         return new LineDataSet(values, "UV Index");
