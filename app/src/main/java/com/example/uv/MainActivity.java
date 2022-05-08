@@ -2,17 +2,8 @@ package com.example.uv;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.core.graphics.drawable.IconCompat;
-
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -23,7 +14,6 @@ import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
@@ -35,17 +25,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.text.SimpleDateFormat;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -53,7 +39,6 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String CHANNEL_ID = "UV tech";
     public static final int[] MED = {200, 200, 250, 300, 450, 600, 1000};
     public static final int[] PROTECTION = {1, 1, 15, 30, 50};
     public static int[][] uvData;
@@ -65,6 +50,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         today = LocalDate.now();
         dayData = new double[86400];
+        index = 0;
         configureStorage();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -79,8 +65,8 @@ public class MainActivity extends AppCompatActivity {
         irradiance = 0;
         graphRange = 3600;
 
-//        Intent bluetoothScan = new Intent(this, Bluetooth.class);
-//        startActivity(bluetoothScan);
+        Intent bluetoothScan = new Intent(this, Bluetooth.class);
+        startActivity(bluetoothScan);
 
     }
 
@@ -118,18 +104,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void initDashboard() {
 
-        // set up alarm
-//        createNotificationChannel();
-
-//        builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-//                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.logo))
-//                .setSmallIcon(IconCompat.createWithBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.logo)))
-//                .setContentTitle("Warning!")
-//                .setContentText("UV exposure limit exceeded.")
-//                .setColor(0xff9026ed)
-//                .setAutoCancel(true)
-//                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
         // set up calendar button
         calendarButton = findViewById(R.id.calendarButton);
         calendarButton.setOnClickListener(view -> switchToCalendarActivity());
@@ -153,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
         // start handler
         handler = new Handler();
 
-        delay = 1000;
+        delay = 3000;
 
         handler.postDelayed( runnable = () -> {
             if (Bluetooth.isConnected()) {
@@ -161,11 +135,6 @@ public class MainActivity extends AppCompatActivity {
             }
             // testing
             else {
-                localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
-                xAxis.setAxisMaximum(getTotalTime(localTime));
-                uvIndex = (float) Math.random() * 10;
-
-//                processUVData(uvIndex);
                 Random rd = new Random();
                 byte[] arr = new byte[24];
                 byte[] arr1 = new byte[24];
@@ -188,11 +157,12 @@ public class MainActivity extends AppCompatActivity {
         irradiance += (uv * 0.025) / PROTECTION[spf];
         irradianceLimit = MED[skin_type];
         irradianceLeft = irradianceLimit - irradiance;
-        LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+        LocalTime localTime = LocalTime.now(Clock.offset(Clock.systemUTC(), Duration.ofHours(5)));
         xAxis.setAxisMaximum(getTotalTime(localTime));
         float x = xAxis.mAxisMaximum - timeOffset;
         Entry e = new Entry(x, (float) uv);
         valueSet.addEntry(e);
+        Log.d("values", String.format("%f", x));
 
         float avgIrr = 0;
         for (Entry entry : valueSet.getValues()) {
@@ -239,9 +209,9 @@ public class MainActivity extends AppCompatActivity {
                      --divisor;
                  }
              }
-             LocalTime lt = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+             index = getTotalTime(LocalTime.now(Clock.offset(Clock.systemUTC(), Duration.ofHours(5))));
              avg = avg/(divisor * 100);
-             dayData[getTotalTime(lt)] = avg;
+             dayData[index] = avg;
              ret = processUVData(avg, i);
          }
          return ret;
@@ -260,7 +230,7 @@ public class MainActivity extends AppCompatActivity {
         lineChart.getAxisLeft().mAxisMaximum = 11;
 
         xAxis = lineChart.getXAxis();
-        startTime = LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5)));
+        startTime = LocalTime.now(Clock.offset(Clock.systemUTC(), Duration.ofHours(5)));
         localTime = startTime;
         xAxis.mAxisMinimum = getTotalTime(localTime);
         xAxis.mAxisMaximum = 1 + xAxis.mAxisMaximum;
@@ -288,7 +258,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void setLineChartData() {
         TextView tv = findViewById(R.id.currentUV);
-        tv.setText(String.format("Current UV Index: %.02f", uvIndex));
+        tv.setText(String.format("Current UV Index: %.02f", dayData[index]));
         ProgressBar pb = findViewById(R.id.progressBar);
         pb.setProgress((int) ((irradiance/irradianceLimit) * 100));
         tv = findViewById(R.id.timeLeft);
@@ -337,8 +307,9 @@ public class MainActivity extends AppCompatActivity {
 
     private LineDataSet getDayData(int r) {
         List<Entry> values = new ArrayList<>();
-        int end = getTotalTime(LocalTime.now(Clock.offset(Clock.systemDefaultZone(), Duration.ofHours(5))));
-        int start = end - r;
+        LocalTime lt = LocalTime.now(Clock.offset(Clock.systemUTC(), Duration.ofHours(5)));
+        int end = getTotalTime(lt);
+        int start = Math.max(end - r, 0);
         while (dayData[start] == 0 && start < end) ++start;
         double[] subset = Arrays.copyOfRange(dayData, start, end);
         for (int i = 0; i < subset.length; ++i) {
@@ -373,7 +344,6 @@ public class MainActivity extends AppCompatActivity {
     private static String timeLeft;
     private int delay;
 
-    private double uvIndex;
     private static double irradiance;
     private static double irradianceLimit;
     private static double irradianceLeft;
@@ -385,6 +355,7 @@ public class MainActivity extends AppCompatActivity {
     private static int numOfUVSensors;
 
     private static double[] dayData;
+    private static int index;
     private File currentData;
     private LocalDate today;
     private int graphRange;
